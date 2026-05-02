@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+
+# Disallow admin or API routes
+Disallow: /api/
+
+# Sitemap location
+Sitemap: https://www.rcepl.com/sitemap.xml
+
+# Crawl delay for polite crawling
+Crawl-delay: 10
