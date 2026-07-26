@@ -1,47 +1,77 @@
 import express from 'express';
 import cors from 'cors';
+import nodemailer from 'nodemailer';
+import 'dotenv/config';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors({ origin: ['http://localhost:3000', 'https://royconstrutions.vercel.app'] }));
 app.use(express.json());
 
-const projects = [
-  {
-    id: 1,
-    title: 'Skyline Corporate Tower',
-    category: 'Commercial',
-    image: 'https://images.unsplash.com/photo-1672072830247-85ac23671e96?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwyfHxjb25zdHJ1Y3Rpb24lMjBidWlsZGluZyUyMHNpdGV8ZW58MXx8fHwxNzc0NDk5MDY4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    description: 'A 50,000 sq ft state-of-the-art office complex in the heart of the city.',
+// Outlook SMTP transporter
+const transporter = nodemailer.createTransport({
+  host: 'smtp.office365.com',
+  port: 587,
+  secure: false,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
   },
-  {
-    id: 2,
-    title: 'Prestige Residences',
-    category: 'Residential',
-    image: 'https://images.unsplash.com/photo-1612945533382-4ae1f539654b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwzfHxjb25zdHJ1Y3Rpb24lMjBidWlsZGluZyUyMHNpdGV8ZW58MXx8fHwxNzc0NDk5MDY4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    description: '30-story luxury residential tower with panoramic city views.',
+  tls: {
+    ciphers: 'SSLv3',
   },
-  {
-    id: 3,
-    title: 'Metro Industrial Hub',
-    category: 'Industrial',
-    image: 'https://images.unsplash.com/photo-1636790921342-cbdc4b783de6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHw0fHxjb25zdHJ1Y3Rpb24lMjBidWlsZGluZyUyMHNpdGV8ZW58MXx8fHwxNzc0NDk5MDY4fDA&ixlib=rb-4.1.0&q=80&w=1080',
-    description: 'Large-scale manufacturing and warehouse complex built for the future.',
-  },
-];
-
-app.get('/api/projects', (req, res) => {
-  res.json(projects);
 });
 
-app.post('/api/contact', (req, res) => {
-  const { name, email, message } = req.body;
+app.post('/api/contact', async (req, res) => {
+  const { name, email, phone, message } = req.body;
+
   if (!name || !email || !message) {
     return res.status(400).json({ error: 'Name, email, and message are required.' });
   }
-  console.log(`[Contact] ${name} <${email}>: ${message}`);
-  res.json({ success: true, message: 'Thank you! We will be in touch shortly.' });
+
+  try {
+    await transporter.sendMail({
+      from: `"Roy Constructions Website" <${process.env.EMAIL_USER}>`,
+      to: process.env.EMAIL_USER,
+      replyTo: email,
+      subject: `New Enquiry from ${name}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #B8965A; border-bottom: 2px solid #B8965A; padding-bottom: 8px;">
+            New Contact Form Submission
+          </h2>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 10px 0; color: #666; width: 120px;"><strong>Name</strong></td>
+              <td style="padding: 10px 0; color: #1A1A1A;">${name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; color: #666;"><strong>Email</strong></td>
+              <td style="padding: 10px 0; color: #1A1A1A;"><a href="mailto:${email}">${email}</a></td>
+            </tr>
+            ${phone ? `
+            <tr>
+              <td style="padding: 10px 0; color: #666;"><strong>Phone</strong></td>
+              <td style="padding: 10px 0; color: #1A1A1A;">${phone}</td>
+            </tr>` : ''}
+            <tr>
+              <td style="padding: 10px 0; color: #666; vertical-align: top;"><strong>Message</strong></td>
+              <td style="padding: 10px 0; color: #1A1A1A; white-space: pre-wrap;">${message}</td>
+            </tr>
+          </table>
+          <p style="color: #999; font-size: 12px; margin-top: 24px; border-top: 1px solid #eee; padding-top: 12px;">
+            Sent from the Roy Constructions website contact form.
+          </p>
+        </div>
+      `,
+    });
+
+    res.json({ success: true, message: 'Thank you! We will be in touch shortly.' });
+  } catch (err) {
+    console.error('[Mailer Error]', err);
+    res.status(500).json({ error: 'Failed to send email. Please try again.' });
+  }
 });
 
 app.listen(PORT, () => {

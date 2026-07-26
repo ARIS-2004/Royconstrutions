@@ -2,6 +2,13 @@ import { Mail, MapPin, Phone, Clock, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
+import emailjs from "@emailjs/browser";
+
+// ── Fill in your EmailJS credentials below ──
+const SERVICE_ID     = import.meta.env.VITE_EMAILJS_SERVICE_ID;
+const TEMPLATE_ID    = import.meta.env.VITE_EMAILJS_TEMPLATE_ID;
+const TEMPLATE_AUTO  = import.meta.env.VITE_EMAILJS_TEMPLATE_AUTO_ID;
+const PUBLIC_KEY     = import.meta.env.VITE_EMAILJS_PUBLIC_KEY;
 
 export function Contact() {
   const [formData, setFormData] = useState({
@@ -17,19 +24,20 @@ export function Contact() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setStatus("sending");
+    const templateParams = {
+      from_name:  formData.name,
+      from_email: formData.email,
+      phone:      formData.phone || 'Not provided',
+      message:    formData.message,
+      to_email:   'info@rcepl.com',
+    };
     try {
-      const res = await fetch("/api/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
-      if (res.ok) {
-        setStatus("success");
-        setFormData({ name: "", email: "", phone: "", message: "" });
-      } else setStatus("error");
-    } catch {
+      // Send enquiry to info@rcepl.com
+      await emailjs.send(SERVICE_ID, TEMPLATE_ID, templateParams, PUBLIC_KEY);
       setStatus("success");
       setFormData({ name: "", email: "", phone: "", message: "" });
+    } catch {
+      setStatus("error");
     }
   };
 
